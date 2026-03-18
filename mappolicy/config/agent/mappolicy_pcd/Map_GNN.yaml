@@ -1,0 +1,22 @@
+name: Map_GNN
+instantiate_config:
+  _target_: MapPolicy.models.SingleFrame_GNN
+  point_cloud_encoder:
+    _target_: MapPolicy.models.pointnet.model_loader.PointnetEnc
+  map_constructor:
+    _target_: MapPolicy.models.map_models.map_constructor.ParameterEstimator_SingleFrame_Regularization
+    point_cloud_encoder:
+      _target_: MapPolicy.models.pointnet.model_loader.PointnetEnc
+    map_name: ${task_name}
+    device: ${device}
+  map_encoder:
+    _target_: MapPolicy.models.map_models.GNN_encoder.RoboGraphormer
+    map_name: ${task_name}
+    hidden_dim: 768
+    num_layers: 6
+    num_heads: 24
+  loss_map_construction:
+    _target_: MapPolicy.loss.point_cloud_complementation.unidirectional_chamfer_loss
+    _partial_: true
+  policy_hidden_dims: [256, 256, 256]
+  policy_head_init_method: orthogonal

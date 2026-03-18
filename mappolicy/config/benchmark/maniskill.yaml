@@ -1,0 +1,22 @@
+name: ManiSkill
+
+dataset_instantiate_config:
+  _target_: MapPolicy.dataset.maniskill_dataset.ManiskillDataset
+
+evaluator_instantiate_config:
+  _target_: MapPolicy.envs.maniskill_wrapper_env.ManiSkillEvaluator
+  max_episode_length: 200
+  image_size: ${image_size}
+  camera_name: ${camera_name}
+  obs_mode: pointcloud
+  control_mode: pd_ee_delta_pose
+  num_points: 1024
+
+loss_func:
+  _target_: MapPolicy.loss.wrap.smart_loss_func
+  lambda_map: ${lambda_map}
+  lambda_physical: ${lambda_physical}
+  # weights for main action components (default 1.0 each)
+  lambda_pos: 80.0
+  lambda_rot: 40.0
+  lambda_gripper: 1.0

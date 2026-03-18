@@ -1,0 +1,17 @@
+name: Demo
+instantiate_config:
+  _target_: MapPolicy.models.DemoModel
+  point_cloud_encoder:
+    _target_: MapPolicy.models.pointnet.model_loader.PointnetEnc
+  map_constructor:
+    _target_: MapPolicy.models.map_models.map_constructor.ParameterEstimator
+    in_dim: 256
+    out_dim: 24
+  map_encoder:
+    _target_: MapPolicy.models.map_models.map_encoder.MapEncoder
+    in_dim: 120
+    feature_dim: 128
+  policy_hidden_dims: [256, 256, 256]
+  point_cloud_dropout_rate: 0.0
+  robot_state_dropout_rate: 0.0
+  policy_head_init_method: orthogonal

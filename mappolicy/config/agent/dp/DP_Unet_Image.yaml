@@ -1,0 +1,3 @@
+name: Diffusion_Policy_Unet_Image
+instantiate_config:
+  _target_: MapPolicy.models.diffusion_policy.diffusion_unet_image_policy

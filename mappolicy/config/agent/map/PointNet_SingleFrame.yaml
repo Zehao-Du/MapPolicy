@@ -1,0 +1,8 @@
+name: PointNet_Map_Constructor
+
+instantiate_config:
+  _target_: mappolicy.models.mappolicy.map_constructor.ParameterEstimator_SingleFrame
+  point_cloud_encoder:
+    _target_: mappolicy.models.pointnet.PointnetEnc
+  task_name: ${task_name}
+  device: ${device}

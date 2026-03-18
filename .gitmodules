@@ -1,0 +1,13 @@
+[submodule "third_party/RLBench"]
+	path = third_party/RLBench
+	url = git@github.com:CSCSX/RLBench.git
+	branch = lift3d
+[submodule "mappolicy/models/LIFT3D"]
+	path = mappolicy/models/LIFT3D
+	url = git@github.com:Zehao-Du/LIFT3D.git
+[submodule "mappolicy/models/pointnet/Pointnet_Pointnet2_pytorch"]
+	path = mappolicy/models/pointnet/Pointnet_Pointnet2_pytorch
+	url = git@github.com:yanx27/Pointnet_Pointnet2_pytorch.git
+[submodule "third_party/FastSAM"]
+	path = mappolicy/models/fast_sam/FastSAM
+	url = git@github.com:Zehao-Du/FastSAM.git

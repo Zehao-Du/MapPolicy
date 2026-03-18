@@ -1,0 +1,54 @@
+defaults:
+  - agent: Map_GNN
+  - benchmark: maniskill
+
+seed: 0
+device: cuda:0
+
+task_name: StackCube-v1
+camera_name: base_camera
+image_size: 128
+
+project_root: /data2/zehao/MapPolicy
+dataset_dir: ${project_root}/data/maniskill/${task_name}_${camera_name}.zarr
+
+dataloader:
+  batch_size: 256
+  num_workers: 0
+  shuffle: True
+  drop_last: True
+  pin_memory: True
+
+lambda_map: 1
+lambda_physical: 1
+
+train:
+  clip_grad_value: 1.0
+  learning_rate: 4e-4
+  num_epochs: 300
+  scheduler_instantiate_config:
+    _target_: MapPolicy.helpers.pytorch.Optimizers.get_warmup_cosine_annealing_scheduler
+    num_warmup_epochs: 20
+    num_epochs: ${train.num_epochs}
+    warmup_factor: 0.01
+    eta_min: 1.0e-6
+
+evaluation:
+  num_skip_epochs: 20
+  validation_frequency_epochs: 10
+  validation_trajs_num: 3
+  save_best_model: True
+
+wandb:
+  project: MapPolicy
+  group: null
+  name: Maniskill_${agent.name}_${task_name}_${camera_name}_norm
+  notes: maniskill test
+  reinit: True
+  mode: online
+
+hydra:
+  run:
+    dir: outputs/maniskill/${agent.name}/${task_name}_${camera_name}/${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    name: maniskill_${agent.name}_${task_name}_${camera_name}

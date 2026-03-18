@@ -1,0 +1,32 @@
+name: ManiSkill_Diffusion_Policy
+
+dataset_instantiate_config:
+  _target_: mappolicy.dataset.maniskill_dataset.ManiSkillDataset_DP
+  data_dir: ${dataset_dir}
+  horizon: 16
+  pad_before: 1
+  pad_after: 7
+  seed: ${seed}
+  val_ratio: 0.1
+  max_train_episodes: null
+
+evaluator_instantiate_config:
+  _target_: mappolicy.envs.maniskill_env.ManiSkillEvaluatorDP
+  task_name: ${task_name}
+  max_episode_length: 200
+  image_size: ${image_size}
+  camera_name: ${camera_name}
+  obs_mode: rgb+depth
+  control_mode: pd_ee_delta_pose
+  num_points: 1024
+  n_ob_steps: 2
+  n_action_steps: 8
+
+# loss_func:
+#   _target_: MapPolicy.loss.wrap.smart_loss_func
+#   lambda_map: ${lambda_map}
+#   lambda_physical: ${lambda_physical}
+#   # weights for main action components (default 1.0 each)
+#   lambda_pos: 80.0
+#   lambda_rot: 40.0
+#   lambda_gripper: 1.0

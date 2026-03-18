@@ -1,0 +1,66 @@
+defaults:
+  - agent: default
+  - benchmark: rlbench
+
+# Experiment settings
+seed: 0
+device: cuda:0
+
+# Task settings
+task_name: water_plants
+camera_name: front
+image_size: 224
+
+# Data settings
+project_root: /data2/zehao/StructureMap3D
+dataset_dir: ${project_root}/data/rlbench/${task_name}.zarr
+dataloader:
+  batch_size: 128
+  num_workers: 0
+  shuffle: True
+  drop_last: True
+  pin_memory: True
+
+# Loss
+lambda_map: 1
+lambda_physical: 1
+
+# Training settings
+train:
+  clip_grad_value: 1.0
+  learning_rate: 2e-4
+  num_epochs: 300
+  scheduler_instantiate_config:
+    _target_: MapPolicy.helpers.pytorch.Optimizers.get_warmup_cosine_annealing_scheduler
+    num_warmup_epochs: 20
+    num_epochs: ${train.num_epochs}
+    warmup_factor: 0.01
+    eta_min: 1.0e-6
+
+# Evaluation settings
+evaluation:
+  num_skip_epochs: 0
+  validation_frequency_epochs: 5
+  validation_trajs_num: 25
+  save_best_model: True
+
+# Logging settings
+wandb: # frequently used args
+  project: MapPolicy
+  group: null
+  api_key: 9cfa75654a6e9d71b0ab34f770c92e38f6d659a4
+  email: duzehao_2023jd@sjtu.edu.cn
+  username: Zehao_Du
+  name: ${agent.name}_${task_name}_${camera_name}
+  notes: ${task_name}
+  reinit: True
+  mode: offline
+  
+# ---------------------
+# Hydra Configuration for output directory name
+# ---------------------
+hydra:
+  run:
+    dir: outputs/${agent.name}/${task_name}_${camera_name}/${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    name: ${agent.name}_${task_name}_${camera_name}

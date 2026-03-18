@@ -1,0 +1,25 @@
+name: SingleFrame_Lift3d_PointNet_GNN_BNMLP
+instantiate_config:
+  _target_: MapPolicy.models.SingleFrame_Lift3d_PointNet_GNN_BNMLP
+  point_cloud_encoder_visual:
+    _target_: MapPolicy.models.LIFT3D.lift3d.models.lift3d.model_loader.lift3d_clip_base
+  point_cloud_encoder_map:
+    _target_: MapPolicy.models.pointnet.model_loader.PointnetEnc
+  map_constructor:
+    _target_: MapPolicy.models.map_models.map_constructor.ParameterEstimator_SingleFrame_Regularization
+    _partial_: true
+    map_name: ${task_name}
+    device: ${device}
+  map_encoder:
+    _target_: MapPolicy.models.map_models.GNN_encoder.RoboGraphormer
+    map_name: ${task_name}
+    hidden_dim: 768
+    num_layers: 6
+    num_heads: 24
+  loss_map_construction:
+    _target_: MapPolicy.loss.point_cloud_complementation.rlbench_frust_masked_chamfer_loss
+    _partial_: true
+    camera_name: ${camera_name}
+  policy_hidden_dims: [256, 256, 256]
+  policy_nonlinearty: relu 
+  policy_dropout_rate: 0.1

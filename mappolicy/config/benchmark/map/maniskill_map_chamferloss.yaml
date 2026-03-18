@@ -1,0 +1,7 @@
+name: ManiSkill_Map_ChamferLoss
+
+dataset_instantiate_config:
+  _target_: mappolicy.dataset.maniskill_dataset.ManiskillDataset
+
+loss_func:
+  _target_: mappolicy.loss.point_cloud_complementation.chamfer_loss

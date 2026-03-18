@@ -1,0 +1,23 @@
+name: MapPolicy_CLIP_PointNet_MLP
+instantiate_config:
+  _target_: mappolicy.models.mlp_policy.RGBD_Map_CLIP_PointNet_MLP_Policy
+  map_constructor:
+    _target_: mappolicy.models.map_models.map_constructor.ParameterEstimator_SingleFrame_Regularization
+    _partial_: true
+    task_name: ${task_name}
+    device: ${device}
+  map_encoder:
+    _target_: mappolicy.models.map_models.GNN_encoder.RoboGraphormer
+    map_name: ${task_name}
+    hidden_dim: 768
+    num_layers: 6
+    num_heads: 24
+  loss_map_construction:
+    _target_: mappolicy.loss.point_cloud_complementation.point_cloud_complementation_loss_maniskill
+    camera_name: ${camera_name}
+  fusion_dim: 256
+  robot_state_encoder_dim: 128
+  mlp_hidden_dims: [1024, 512, 256]
+  mlp_activation: relu
+  mlp_use_batchnorm: False
+  mlp_dropout: 0.1

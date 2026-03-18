@@ -1,0 +1,64 @@
+defaults:
+  - agent: dp/DP_Unet_Hybrid_Image
+  - benchmark: dp/maniskill_dp
+
+seed: 0
+device: cuda:0
+
+task_name: StackCube-v1
+camera_name: base_camera
+image_size: 224
+
+project_root: /data2/zehao/MapPolicy
+dataset_dir: ${project_root}/data/maniskill/${task_name}_${camera_name}.zarr
+
+dataloader:
+  batch_size: 256
+  num_workers: 4
+  shuffle: True
+  drop_last: True
+  pin_memory: True
+
+train:
+  use_ema: True
+  gradient_accumulate_every: 1
+  clip_grad_value: 1.0
+  max_train_steps: null
+  max_val_steps: null
+  val_every: 5
+  learning_rate: 4e-4
+  num_epochs: 300
+  lr_scheduler:
+    name: cosine_with_warmup
+    warmup_steps_ratio: 0.05
+    warmup_start_factor: 0.01
+    min_lr_ratio: 0.01
+  tqdm_interval_sec: 1.0
+
+ema:
+  _target_: mappolicy.models.diffusion_policy.diffusion.ema_model.EMAModel
+  inv_gamma: 1.0
+  max_value: 0.9999
+  min_value: 0.0
+  power: 0.75
+  update_after_step: 0
+
+evaluation:
+  num_skip_epochs: 100
+  validation_frequency_epochs: 25
+  validation_trajs_num: 40
+  save_best_model: True
+
+wandb:
+  project: MapPolicy
+  group: null
+  name: Maniskill_${agent.name}_${task_name}_${camera_name}_norm
+  notes: maniskill test
+  reinit: True
+  mode: offline
+
+hydra:
+  run:
+    dir: outputs/maniskill/${task_name}_${camera_name}/${agent.name}/${now:%Y-%m-%d_%H-%M-%S}
+  job:
+    name: maniskill_${agent.name}_${task_name}_${camera_name}

@@ -1,0 +1,17 @@
+# logs
+outputs/
+test_output
+
+# dataset
+data/
+Data/
+
+# debug & scripts
+scripts/train/train_[1234567890].*
+mappolicy/envs/debug_*
+
+# python
+__pycache__/
+
+# github
+.github/

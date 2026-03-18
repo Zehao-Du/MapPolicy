@@ -1,0 +1,20 @@
+name: Map_MLP_UnidirectionalChamferloss
+instantiate_config:
+  _target_: MapPolicy.models.SingleFrame_MLP_Chamferloss
+  point_cloud_encoder:
+    _target_: MapPolicy.models.pointnet.model_loader.PointnetEnc
+  map_constructor:
+    _target_: MapPolicy.models.map_models.map_constructor.ParameterEstimator_SingleFrame
+    point_cloud_encoder:
+      _target_: MapPolicy.models.pointnet.model_loader.PointnetEnc
+    map_name: ${task_name}
+    device: ${device}
+  map_encoder:
+    _target_: MapPolicy.models.map_models.map_encoder.MapEncoder_MLP
+    hidden_dim: 256
+    feature_dim: 128
+  loss_map_construction:
+    _target_: MapPolicy.loss.point_cloud_complementation.unidirectional_chamfer_loss
+    _partial_: true
+  policy_hidden_dims: [256, 256, 256]
+  policy_head_init_method: orthogonal

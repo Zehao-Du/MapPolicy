@@ -1,0 +1,8 @@
+name: ManiSkill_Map_CameraLoss
+
+dataset_instantiate_config:
+  _target_: mappolicy.dataset.maniskill_dataset.ManiskillDataset
+
+loss_func:
+  _target_: mappolicy.loss.point_cloud_complementation.point_cloud_complementation_loss_maniskill
+  camera_name: ${camera_name}

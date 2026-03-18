@@ -1,0 +1,19 @@
+name: MetaWorld
+
+dataset_instantiate_config:
+  _target_: MapPolicy.dataset.metaworld_dataset.MetaWorldDataset
+
+evaluator_instantiate_config:
+  _target_: MapPolicy.envs.metaworld_env.MetaWorldEvaluator
+  max_episode_length: 200
+  image_size: ${image_size}
+  camera_name: ${camera_name}
+  use_point_crop: True
+  num_points: 1024
+  point_cloud_camera_names: 
+    - ${camera_name}
+
+loss_func:
+  _target_: MapPolicy.loss.wrap.smart_loss_func
+  lambda_map: ${lambda_map}
+  lambda_physical: ${lambda_physical}
