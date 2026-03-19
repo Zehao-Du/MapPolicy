@@ -10,6 +10,7 @@ class Soccer_Mechanism:
     """
 
     def __init__(self, sizes, positions, rotations):
+        self.Object_Prompt = "soccer goal"
         # sizes: [B, 13]  ->  ball(1) + post_L(3) + post_R(3) + bar(3) + net(3)
         # positions: [B, 15],  rotations: [B, 30]
 
@@ -134,6 +135,8 @@ class StructureMap_Soccer(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(obj.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
 
         super().__init__(Nodes, Edges, clip_model)
 

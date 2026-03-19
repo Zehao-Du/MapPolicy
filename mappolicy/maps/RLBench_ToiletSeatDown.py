@@ -11,6 +11,7 @@ class Toilet:
         semantic2 = "toilet bowl"       # sphere 1   
         semantic3 = "toilet lid"        # cylinder 3
         semantic4 = "toilet base"       # cuboid 3
+        self.Object_Prompt = "toilet"
 
         size1 = sizes[:, 0:3]
         size2 = sizes[:, 3:4]
@@ -62,6 +63,8 @@ class StructureMap_ToiletSeatDown(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

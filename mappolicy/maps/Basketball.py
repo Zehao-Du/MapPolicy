@@ -8,6 +8,7 @@ class Basketball:
 
     def __init__(self, sizes, positions, rotations):
         semantic1 = "basketball"
+        self.Object_Prompt = "basketball"
 
         Nodes = []
         Edges = []
@@ -37,6 +38,7 @@ class Basket:
     """
 
     def __init__(self, sizes, positions, rotations):
+        self.Object_Prompt = "basket"
         Nodes = []
         Edges = []
 
@@ -133,6 +135,8 @@ class StructureMap_Basketball(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(obj.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
 
         super().__init__(Nodes, Edges, clip_model)
 

@@ -8,6 +8,7 @@ class Wall_Desk:
     def __init__(self, sizes, positions, rotations):
         semantic1 = 'desk'
         semantic2 = 'wall'
+        self.Object_Prompt = 'wall and desk'
 
         Nodes = []
         Edges = []
@@ -30,6 +31,7 @@ class Wall_Desk:
 class Puck:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'puck'
+        self.Object_Prompt = 'puck'
         
         Nodes = []
         Edges = []
@@ -69,6 +71,8 @@ class StructureMap_PushWall(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

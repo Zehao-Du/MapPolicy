@@ -7,6 +7,7 @@ from base_template import StructureEdge, StructureGraph
 class Peg:
     def __init__(self, sizes, positions, rotations):
         semantic = "peg"
+        self.Object_Prompt = "peg"
 
         Nodes = []
         Edges = []
@@ -41,6 +42,7 @@ class Nut:
     def __init__(self, sizes, positions, rotations):
         semantic_nut = "nut"
         semantic_handle = "nut handle"
+        self.Object_Prompt = "nut"
 
         Nodes = []
         Edges = []
@@ -154,6 +156,8 @@ class StructureMap_Disassemble(StructureGraph):
                 torch.zeros((B, 3), device=device),
             )
         )
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
 
         super().__init__(Nodes, Edges, clip_model)
 

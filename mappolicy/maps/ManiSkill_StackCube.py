@@ -7,6 +7,7 @@ from base_template import StructureEdge, StructureGraph
 class RedCube:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'red cube'
+        self.Object_Prompt = 'red cube'
         
         Nodes = []
         Edges = []
@@ -23,6 +24,7 @@ class RedCube:
 class GreenCube:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'green cube'
+        self.Object_Prompt = 'green cube'
         
         Nodes = []
         Edges = []
@@ -39,6 +41,7 @@ class GreenCube:
 class Desk:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'desk'
+        self.Object_Prompt = 'table top'
         
         Nodes = []
         Edges = []
@@ -82,6 +85,7 @@ class StructureMap_StackCube(StructureGraph):
         
         self.Nodes = Nodes
         self.Edges = Edges
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         super().__init__(Nodes, Edges, clip_model)
 
     def _preprocess_parameters(self, sizes):

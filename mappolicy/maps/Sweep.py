@@ -7,6 +7,7 @@ from base_template import StructureEdge, StructureGraph
 class Block:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'block'
+        self.Object_Prompt = 'block'
         
         Nodes = []
         Edges = []
@@ -45,6 +46,8 @@ class StructureMap_Sweep(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

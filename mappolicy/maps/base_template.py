@@ -4,6 +4,7 @@ from utils_torch import relative_pose_6d
 import torch
 from torch_geometric.data import Data
 import clip
+import re
 
 TYPE_VOCAB = {'Free': 0,'Fixed': 1, 'Revolute': 2, 'Prismatic': 3, 'Cylindrical': 4, 'Planar-Contact': 5, 'Alignment': 6}
 
@@ -97,6 +98,78 @@ class StructureGraph:
         
         self.M = len(self.Edge) # Number of Edges
         self._Batch_Graph() # self.data is used to train the model
+
+    @staticmethod
+    def _normalize_semantic_text(text):
+        text = str(text).strip().lower()
+        text = re.sub(r"\s+", " ", text)
+        return text
+
+    @classmethod
+    def _infer_object_prompt_from_nodes(cls, nodes):
+        semantics = []
+        for node in nodes:
+            sem = getattr(node, "Node_Semantic", None)
+            if sem is not None and str(sem).strip() != "":
+                semantics.append(cls._normalize_semantic_text(sem))
+
+        if len(semantics) == 0:
+            return "object"
+        if len(semantics) == 1:
+            return semantics[0]
+
+        token_lists = [s.split(" ") for s in semantics]
+        min_len = min(len(tokens) for tokens in token_lists)
+
+        prefix = []
+        for i in range(min_len):
+            token_i = token_lists[0][i]
+            if all(tokens[i] == token_i for tokens in token_lists):
+                prefix.append(token_i)
+            else:
+                break
+
+        if len(prefix) > 0:
+            return " ".join(prefix)
+        return "object"
+
+    def _build_subgraph_prompts(self, objects):
+        """
+        由 map 显式传入的 object 列表构建粗粒度子图语义。
+
+        Returns:
+            List[Dict[str, Any]]: [{"text_prompt": str, "node_indices": List[int]}, ...]
+        """
+        subgraph_prompts = []
+        node_offset = 0
+
+        for obj in objects:
+            nodes = getattr(obj, "Nodes", None)
+            if nodes is None or len(nodes) == 0:
+                continue
+
+            text_prompt = getattr(obj, "Object_Prompt", None)
+            if text_prompt is None or str(text_prompt).strip() == "":
+                text_prompt = self._infer_object_prompt_from_nodes(nodes)
+                # 若节点语义无法形成好的粗粒度描述，则回退到对象类名
+                # 例如: "base", "handle", "link" -> "handle pull"
+                if text_prompt in {"object"}:
+                    cls_name = obj.__class__.__name__
+                    text_prompt = re.sub(r"_+", " ", cls_name)
+                    text_prompt = re.sub(r"(?<!^)(?=[A-Z])", " ", text_prompt)
+                    text_prompt = self._normalize_semantic_text(text_prompt)
+            else:
+                text_prompt = self._normalize_semantic_text(text_prompt)
+
+            subgraph_prompts.append(
+                {
+                    "text_prompt": text_prompt,
+                    "node_indices": list(range(node_offset, node_offset + len(nodes))),
+                }
+            )
+            node_offset += len(nodes)
+
+        return subgraph_prompts
         
     def _precompute_semantics(self):
         # 提取所有节点的唯一语义字符串
@@ -398,3 +471,5 @@ class StructureGraph:
         points = torch.cat(points, dim=1)   # [B, n, 3]
         return points
     
+    def get_prompt(self):
+        return self.Subgraph_Prompts

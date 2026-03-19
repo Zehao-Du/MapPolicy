@@ -338,3 +338,186 @@ class PointCloud(object):
             )
 
         return pc
+
+# Camera
+# metaworld, camera extrinsic matrix
+Metaworld_extrinsic_matrix = {
+    "corner": np.array(
+        [
+            [-0.7071, 0.7071, 0.0, -0.495],
+            [0.1925, 0.1925, 0.9623, -0.2887],
+            [0.6804, 0.6804, -0.2722, 1.1839],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    ),
+    "corner2": np.array(
+        [
+            [-0.5499, -0.8332, 0.0584, 0.484],
+            [-0.3762, 0.3095, 0.8733, -0.4096],
+            [-0.7457, 0.4582, -0.4837, 1.5931],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    ),
+}
+
+# metaworld, camera intrinsic matrix
+Metaworld_intrinsic_matrix = {
+    "corner": np.array(
+        [
+            [270.3919, 0.0, 112.0],
+            [0.0, 270.3919, 112.0],
+            [0.0, 0.0, 1.0],
+        ]
+    ),
+    "corner2": np.array(
+        [
+            [193.9897, 0.0, 112.0],
+            [0.0, 193.9897, 112.0],
+            [0.0, 0.0, 1.0],
+        ]
+    ),
+}
+
+# The coordinate frame in Sapien is: x(forward), y(left), z(upward)
+# rlbench, camera extrinsic matrix
+RLBench_extrinsic_matrix = {
+    "front": np.array(
+        [
+            [ 1.16849501e-07, -1.00000000e+00, -6.03176614e-07,  8.32426571e-07,],
+            [-4.22617918e-01, -5.63571533e-07,  9.06307948e-01, -8.61432102e-01,],
+            [-9.06307948e-01,  1.31264604e-07, -4.22617948e-01,  1.89125107e+00,],
+            [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  1.00000000e+00,],
+        ]
+    ),
+}
+
+# rlbench, camera intrinsic matrix
+RLBench_intrinsic_matrix = {
+    "front": np.array(
+        [
+            [-307.7174807,0.0,112.0,],
+            [0.0,-307.7174807,112.0,],
+            [0.0,0.0,1.0,],
+        ]
+    )
+}
+
+# The coordinate frame in ManiSkill2 is: x(forward), y(right), z(downward)
+# maniskill, camera extrinsic matrix
+ManiSkill_extrinsic_matrix = {
+    "base_camera": np.array(
+        [
+            [ 0.0,        1.0,        0.0,          0.0      ],
+            [ 0.78086877,  0.0,      -0.62469506,  0.14055645],
+            [-0.62469506,  0.0,      -0.78086877,  0.6559298 ],
+            [ 0.0,        0.0,        0.0,          1.0      ],
+        ]
+    )
+}
+
+# maniskill, camera intrinsic matrix
+ManiSkill_intrinsic_matrix = {
+    "base_camera": np.array(
+        [
+            [112.0,   0.0,  112.0],
+            [  0.0, 112.0, 112.0],
+            [  0.0,   0.0,   1.0]
+        ]
+    )
+}
+
+
+CAMERA_CONFIGS = {
+    "metaworld": {
+        "extrinsic": Metaworld_extrinsic_matrix,
+        "intrinsic": Metaworld_intrinsic_matrix,
+    },
+    "rlbench": {
+        "extrinsic": RLBench_extrinsic_matrix,
+        "intrinsic": RLBench_intrinsic_matrix,
+    },
+    "maniskill": {
+        "extrinsic": ManiSkill_extrinsic_matrix,
+        "intrinsic": ManiSkill_intrinsic_matrix,
+    }
+}
+
+
+def _resolve_benchmark_camera_key(benchmark: str) -> str:
+    key = benchmark.lower()
+    if key in CAMERA_CONFIGS:
+        return key
+
+    if "maniskill" in key:
+        return "maniskill"
+    if "metaworld" in key:
+        return "metaworld"
+    if "rlbench" in key:
+        return "rlbench"
+
+    raise ValueError(
+        f"Unsupported benchmark '{benchmark}'. Available camera benchmarks: {list(CAMERA_CONFIGS.keys())}"
+    )
+
+
+def get_camera_params(benchmark: str, camera: str):
+    """根据 benchmark 与 camera 名称获取内外参。"""
+    key = _resolve_benchmark_camera_key(benchmark)
+    cfg = CAMERA_CONFIGS[key]
+    try:
+        return cfg["intrinsic"][camera], cfg["extrinsic"][camera]
+    except KeyError:
+        raise ValueError(f"Camera {camera} not found in benchmark {benchmark}")
+
+def rgbd_to_world_pointcloud(
+    rgb: np.ndarray, 
+    depth: np.ndarray, 
+    mask: np.ndarray, 
+    intrinsic: np.ndarray, 
+    extrinsic: np.ndarray
+):
+    """
+    将深度图转换为世界坐标系下的点云
+    :param rgb: (H, W, 3) np.ndarray
+    :param depth: (H, W) np.ndarray, 单位通常为米
+    :param mask: (H, W) np.ndarray, bool 类型掩码
+    :param intrinsic: (3, 3) 相机内参矩阵
+    :param extrinsic: (4, 4) 相机到世界坐标系的变换矩阵
+    :return: (N, 3) 世界坐标系下的点云
+    """
+    H, W = depth.shape
+    
+    # 1. 生成像素网格
+    i, j = np.meshgrid(np.arange(W), np.arange(H), indexing='xy')
+    
+    # 2. 过滤掉非掩码区域的像素
+    valid_mask = mask.astype(bool)
+    z = depth[valid_mask]
+    u = i[valid_mask]
+    v = j[valid_mask]
+    
+    # 3. 反投影到相机坐标系 (x_cam = (u - cx) * z / fx)
+    fx, fy = intrinsic[0, 0], intrinsic[1, 1]
+    cx, cy = intrinsic[0, 2], intrinsic[1, 2]
+    
+    x = (u - cx) * z / fx
+    y = (v - cy) * z / fy
+    
+    # 相机坐标系下的点 (N, 3)
+    points_cam = np.stack([x, y, z], axis=1)
+    
+    # 4. 齐次坐标变换到世界坐标系
+    ones = np.ones((points_cam.shape[0], 1))
+    points_cam_homo = np.concatenate([points_cam, ones], axis=1)
+    
+    # points_world = extrinsic @ points_cam_homo^T
+    points_world = (extrinsic @ points_cam_homo.T).T[:, :3]
+    
+    return points_world
+
+def get_pointcloud_from_input(rgb, depth, mask, benchmark, camera):
+    """
+    集成函数：自动根据 benchmark 和 camera 名称获取内外参并转换
+    """
+    intrinsic, extrinsic = get_camera_params(benchmark, camera)
+    return rgbd_to_world_pointcloud(rgb, depth, mask, intrinsic, extrinsic)

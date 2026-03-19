@@ -1,0 +1,12 @@
+name: PointNet_Map_Constructor_Segmentation
+
+instantiate_config:
+  _target_: mappolicy.models.mappolicy.map_constructor.ParameterEstimator_SingleFrame_Segmentation
+  point_cloud_encoder:
+    _target_: mappolicy.models.pointnet.PointnetEnc
+  benchmark_name: ${benchmark.name}
+  camera_name: ${camera_name}
+  task_name: ${task_name}
+  fastsam_ckpt_path: ${project_root}/mappolicy/models/fast_sam/FastSAM/weights/FastSAM-x.pt
+  image_size: ${image_size}
+  device: ${device}

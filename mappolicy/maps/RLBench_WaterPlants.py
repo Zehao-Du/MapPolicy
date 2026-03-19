@@ -8,6 +8,7 @@ import math
 class Plant:
     def __init__ (self, size, position, rotation):
         semantic = 'plant'
+        self.Object_Prompt = 'plant'
         
         Nodes = []
         Edges = []
@@ -23,6 +24,7 @@ class Kettle:
         semantic2 = 'kettle top handle'     # ring 3
         semantic3 = 'kettle side handle'    # ring 4
         semantic4 = 'kettle spout'          # cylinder 2
+        self.Object_Prompt = 'kettle'
         
         Nodes = []
         Edges = []
@@ -78,6 +80,8 @@ class StructureMap_WaterPlants(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

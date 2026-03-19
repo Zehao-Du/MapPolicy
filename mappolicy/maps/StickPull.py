@@ -10,6 +10,7 @@ class Stick_Pull_Mechanism:
     """
 
     def __init__(self, sizes, positions, rotations):
+        self.Object_Prompt = "stick pull mechanism"
         # sizes: [B, 11]  ->  stick(2: height, radius) + base(2) + body(2) + handle(5)
         # positions: [B, 12],  rotations: [B, 24]
 
@@ -126,6 +127,8 @@ class StructureMap_StickPull(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(obj.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
 
         super().__init__(Nodes, Edges, clip_model)
 

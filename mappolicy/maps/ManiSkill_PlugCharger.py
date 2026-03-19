@@ -8,6 +8,7 @@ class Charger:
     def __init__ (self, size, position, rotation):
         semantic1 = 'charger body'
         semantic2 = 'charger plug'
+        self.Object_Prompt = 'charger'
         Nodes = []
         Edges = []
         
@@ -27,6 +28,7 @@ class socket:
     def __init__ (self, size, position, rotation):
         semantic1 = 'socket shell'
         semantic2 = 'socket hole'
+        self.Object_Prompt = 'socket'
         Nodes = []
         Edges = []
         
@@ -66,6 +68,8 @@ class StructureMap_PlugCharger(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(obj.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts([charger_obj, socket_obj])
 
         super().__init__(Nodes, Edges, clip_model)
 

@@ -7,6 +7,7 @@ class Hammer:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = "hammer head"
         semantic2 = "hammer handle"
+        self.Object_Prompt = "hammer"
 
         Nodes = []
         Edges = []
@@ -44,6 +45,7 @@ class Hammer:
 class Nail:
     def __init__ (self, sizes, positions, rotations):
         semantic = "nail"
+        self.Object_Prompt = "nail"
 
         Nodes = []
         Edges = []
@@ -84,6 +86,8 @@ class StructureMap_Hammer(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
 

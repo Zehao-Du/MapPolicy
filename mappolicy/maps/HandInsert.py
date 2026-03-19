@@ -8,6 +8,7 @@ class Desk:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'desk'
         semantic2 = 'hole'
+        self.Object_Prompt = 'desk'
         
         Nodes = []
         Edges = []
@@ -52,6 +53,8 @@ class StructureMap_HandInsert(StructureGraph):
             edge.Node_idx[1] += num_node 
             Edges.append(edge)
         num_node += len(target_block.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts([target_block])
         
         
         super().__init__(Nodes, Edges, clip_model)

@@ -9,6 +9,7 @@ class Handle:
         semantic1 = "base"
         semantic2 = "handle"
         semantic3 = "link"
+        self.Object_Prompt = "handle"
         
         size1 = sizes[:, 0:2]
         size2 = sizes[:, 2:4]
@@ -62,6 +63,8 @@ class StructureMap_HandlePull(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

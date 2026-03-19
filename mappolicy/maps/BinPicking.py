@@ -7,6 +7,7 @@ from base_template import StructureEdge, StructureGraph
 class Puck:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'puck '
+        self.Object_Prompt = 'puck'
         
         Nodes = []
         Edges = []
@@ -24,6 +25,7 @@ class Red_Bin:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'red bin bottom'
         semantic2 = 'red bin body'
+        self.Object_Prompt = 'red bin'
         
         Nodes = []
         Edges = []
@@ -52,6 +54,7 @@ class Blue_Bin:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'blue bin bottom'
         semantic2 = 'blue bin body'
+        self.Object_Prompt = 'blue bin'
         
         Nodes = []
         Edges = []
@@ -94,15 +97,26 @@ class StructureMap_BinPicking(StructureGraph):
         
         Nodes = []
         Edges = []
+        Subgraph_Prompts = []
         
         num_node = 0
         for object in Objects:
+            node_indices = list(range(num_node, num_node + len(object.Nodes)))
+            text_prompt = getattr(object, "Object_Prompt", None)
+            if text_prompt is not None:
+                Subgraph_Prompts.append({
+                    "text_prompt": text_prompt,
+                    "node_indices": node_indices,
+                })
             for node in object.Nodes:
                 Nodes.append(node)
             for edge in object.Edges:
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        # 粗粒度子图提示（供 segmentation estimator 优先使用）
+        self.Subgraph_Prompts = Subgraph_Prompts
         
         super().__init__(Nodes, Edges, clip_model)
         

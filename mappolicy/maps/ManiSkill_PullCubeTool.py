@@ -8,6 +8,7 @@ class BlueCube:
 
     def __init__(self, sizes, positions, rotations):
         semantic = "blue cube"
+        self.Object_Prompt = "blue cube"
 
         Nodes = []
         Edges = []
@@ -36,6 +37,7 @@ class TwoRedCuboids:
     def __init__(self, sizes, positions, rotations):
         semantic1 = "red cuboid"
         semantic2 = "red cuboid"
+        self.Object_Prompt = "red cuboids tool"
 
         Nodes = []
         Edges = []
@@ -100,6 +102,8 @@ class StructureMap_PullCubeTool(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(obj.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
 
         super().__init__(Nodes, Edges, clip_model)
 

@@ -2,6 +2,7 @@ import pathlib
 import sys
 import importlib
 from typing import Optional, Union
+from collections import OrderedDict
 
 import numpy as np
 import torch
@@ -72,21 +73,39 @@ class FastSAM_Loader:
 		rgb = rgb.astype(np.uint8)
 		return Image.fromarray(rgb, mode="RGB")
 
-	def segment_by_text_prompt(
-		self,
-		rgb: Union[np.ndarray, Image.Image, torch.Tensor],
-		text_prompt: str,
-	) -> np.ndarray:
-		"""
-		输入 RGB 和文本提示，输出二值分割掩码（H, W）, dtype=bool。
-		"""
+	@staticmethod
+	def _ensure_bool_mask(mask: Union[np.ndarray, torch.Tensor], h: int, w: int) -> np.ndarray:
+		if isinstance(mask, torch.Tensor):
+			mask = mask.detach().cpu().numpy()
+		mask = np.asarray(mask)
+		if mask.shape != (h, w):
+			mask = mask.reshape(h, w)
+		return mask > 0
+
+	@staticmethod
+	def _adjust_idx_for_filter(local_idx: int, filter_id: list) -> int:
+		if len(filter_id) == 0:
+			return int(local_idx)
+		return int(local_idx) + int(sum(np.array(filter_id) <= int(local_idx)))
+
+	def _ensure_clip_module(self):
+		prompt_module = importlib.import_module("fastsam.prompt")
+		if not hasattr(prompt_module, "clip"):
+			try:
+				import clip
+				prompt_module.clip = clip
+			except Exception as exc:
+				raise ImportError(
+					"CLIP is required for text prompt. Install with: "
+					"pip install git+https://github.com/openai/CLIP.git"
+				) from exc
+		return prompt_module.clip
+
+	def _build_prompt_process(self, rgb: Union[np.ndarray, Image.Image, torch.Tensor]):
 		if self.model is None:
 			raise RuntimeError("FastSAM model is not loaded. Call load_ckpt(...) first.")
-		if not text_prompt or not isinstance(text_prompt, str):
-			raise ValueError("text_prompt must be a non-empty string")
 
 		image = self._to_pil_rgb(rgb)
-
 		everything_results = self.model(
 			image,
 			device=self.device,
@@ -95,33 +114,140 @@ class FastSAM_Loader:
 			conf=self.conf,
 			iou=self.iou,
 		)
-
-		# FastSAM 上游实现里 text_prompt() 依赖全局 clip 符号，这里确保其可用。
-		prompt_module = importlib.import_module("fastsam.prompt")
-
-		if not hasattr(prompt_module, "clip"):
-			try:
-				import clip
-
-				prompt_module.clip = clip
-			except Exception as exc:
-				raise ImportError(
-					"CLIP is required for text prompt. Install with: "
-					"pip install git+https://github.com/openai/CLIP.git"
-				) from exc
-
 		prompt_process = FastSAMPrompt(image, everything_results, device=self.device)
-		ann = prompt_process.text_prompt(text=text_prompt)
+		return image, prompt_process
 
-		if ann is None or len(ann) == 0:
-			return np.zeros((image.height, image.width), dtype=bool)
+	def _text_prompt_candidates_from_process(
+		self,
+		prompt_process: "FastSAMPrompt",
+		text_prompt: str,
+		clip_model,
+		preprocess,
+		topk: int = 5,
+	):
+		if prompt_process.results is None:
+			return []
 
-		mask = ann[0]
-		if isinstance(mask, torch.Tensor):
-			mask = mask.detach().cpu().numpy()
+		format_results = prompt_process._format_results(prompt_process.results[0], 0)
+		cropped_boxes, _, not_crop, filter_id, annotations = prompt_process._crop_image(format_results)
+		if len(cropped_boxes) == 0:
+			return []
 
-		mask = np.asarray(mask) > 0
-		return mask
+		scores = prompt_process.retrieve(clip_model, preprocess, cropped_boxes, text_prompt, device=self.device)
+		if isinstance(scores, torch.Tensor):
+			order = torch.argsort(scores, descending=True).detach().cpu().numpy()
+			scores_np = scores.detach().cpu().numpy()
+		else:
+			scores_np = np.asarray(scores)
+			order = np.argsort(scores_np)[::-1]
+
+		if isinstance(prompt_process.img, np.ndarray):
+			h, w = prompt_process.img.shape[0], prompt_process.img.shape[1]
+		else:
+			h, w = prompt_process.img.height, prompt_process.img.width
+		candidates = []
+		for local_idx in order[:max(1, int(topk))]:
+			global_idx = self._adjust_idx_for_filter(int(local_idx), filter_id)
+			if global_idx >= len(annotations):
+				continue
+			mask = annotations[global_idx]["segmentation"]
+			mask = self._ensure_bool_mask(mask, h, w)
+			if mask.sum() == 0:
+				continue
+			candidates.append({"mask": mask, "score": float(scores_np[local_idx])})
+
+		return candidates
+
+	def segment_multi_text_prompts(
+		self,
+		rgb: Union[np.ndarray, Image.Image, torch.Tensor],
+		text_prompts,
+		topk: int = 8,
+		overlap_penalty: float = 0.8,
+		min_pixels: int = 50,
+	):
+		if text_prompts is None or len(text_prompts) == 0:
+			return OrderedDict()
+
+		image, prompt_process = self._build_prompt_process(rgb)
+		clip_module = self._ensure_clip_module()
+		clip_model, preprocess = clip_module.load("ViT-B/32", device=self.device)
+		image_np = np.asarray(image, dtype=np.uint8)
+
+		h, w = image.height, image.width
+		used = np.zeros((h, w), dtype=bool)
+		result = OrderedDict()
+
+		for prompt in text_prompts:
+			prompt_l = str(prompt).lower()
+			cands = self._text_prompt_candidates_from_process(
+				prompt_process=prompt_process,
+				text_prompt=prompt,
+				clip_model=clip_model,
+				preprocess=preprocess,
+				topk=topk,
+			)
+
+			if len(cands) == 0:
+				result[prompt] = np.zeros((h, w), dtype=bool)
+				continue
+
+			best_mask = cands[0]["mask"]
+			best_adjusted = -1e9
+
+			for rank, item in enumerate(cands):
+				mask = item["mask"]
+				score = float(item["score"])
+				area = int(mask.sum())
+				area_ratio = area / max(1, h * w)
+				inter = int(np.logical_and(mask, used).sum())
+				overlap_ratio = inter / max(1, area)
+				new_pixels = area - inter
+
+				adjusted = score - overlap_penalty * overlap_ratio - 0.02 * rank
+				if new_pixels < min_pixels:
+					adjusted -= 1.0
+
+				# 颜色先验：帮助 red/green/blue 等提示词区分目标
+				pixels = image_np[mask]
+				if pixels.size > 0:
+					mean_r, mean_g, mean_b = pixels.mean(axis=0)
+					if "red" in prompt_l:
+						adjusted += 0.4 * ((mean_r - mean_g) / 255.0)
+					if "green" in prompt_l:
+						adjusted += 0.4 * ((mean_g - max(mean_r, mean_b)) / 255.0)
+					if "blue" in prompt_l:
+						adjusted += 0.4 * ((mean_b - mean_r) / 255.0)
+
+				# 尺度先验：对小物体词汇抑制大面积掩码
+				if any(tok in prompt_l for tok in ["cube", "peg", "puck", "ball", "charger", "tool"]):
+					adjusted -= 0.8 * max(0.0, area_ratio - 0.08)
+
+				# 桌面词汇不应过小
+				if any(tok in prompt_l for tok in ["desk", "table", "tabletop"]) and area_ratio < 0.03:
+					adjusted -= 0.5
+
+				if adjusted > best_adjusted:
+					best_adjusted = adjusted
+					best_mask = mask
+
+			result[prompt] = best_mask
+			used = np.logical_or(used, best_mask)
+
+		return result
+
+	def segment_by_text_prompt(
+		self,
+		rgb: Union[np.ndarray, Image.Image, torch.Tensor],
+		text_prompt: str,
+	) -> np.ndarray:
+		"""
+		输入 RGB 和文本提示，输出二值分割掩码（H, W）, dtype=bool。
+		"""
+		if not text_prompt or not isinstance(text_prompt, str):
+			raise ValueError("text_prompt must be a non-empty string")
+		masks = self.segment_multi_text_prompts(rgb, [text_prompt], topk=8)
+		return masks[text_prompt]
 
 
 def main():

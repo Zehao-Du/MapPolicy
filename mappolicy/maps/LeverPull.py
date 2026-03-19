@@ -10,6 +10,7 @@ class Lever_Mechanism:
     """
 
     def __init__(self, sizes, positions, rotations):
+        self.Object_Prompt = "lever"
         # sizes: [B, 8]  ->  cuboid(3) + cyl1(2: height, top_radius) + cyl2(2) + sphere(1: radius)
         # positions: [B, 12],  rotations: [B, 24]
 
@@ -125,6 +126,8 @@ class StructureMap_LeverPull(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(obj.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
 
         super().__init__(Nodes, Edges, clip_model)
 

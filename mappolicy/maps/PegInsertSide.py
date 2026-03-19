@@ -10,6 +10,7 @@ class Target_Block:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'target block'
         semantic2 = 'target area'
+        self.Object_Prompt = 'target block'
         
         Nodes = []
         Edges = []
@@ -34,6 +35,7 @@ class Target_Block:
 class Peg:
     def __init__ (self, size, position, rotation):
         semantic = 'peg'
+        self.Object_Prompt = 'peg'
         
         Nodes = []
         Edges = []
@@ -75,6 +77,8 @@ class StructureMap_PegInsertSide(StructureGraph):
             edge.Node_idx[1] += num_node 
             Edges.append(edge)
         num_node += len(peg.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts([target_block, peg])
         
         super().__init__(Nodes, Edges, clip_model)
     def _preprocess_parameters(self, sizes):

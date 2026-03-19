@@ -7,6 +7,7 @@ from base_template import StructureEdge, StructureGraph
 class Target_Block:
     def __init__(self, sizes, positions, rotations):
         semantic1 = "puck"
+        self.Object_Prompt = "target block"
         
         Nodes = []
         Edges = []
@@ -25,6 +26,7 @@ class Shelf:
         semantic1 = 'bookshelf\'s back panel'
         semantic2 = 'bookshelf\'s shelf '
         semantic3 = 'bookshelf\'s top, bottom and side panel'
+        self.Object_Prompt = 'shelf'
         
         Nodes = []
         Edges = []
@@ -88,6 +90,8 @@ class StructureMap_ShelfPlace(StructureGraph):
             edge.update_node_idx(num_node) 
             Edges.append(edge)
         num_node += len(shelf.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts([target_block, shelf])
         
         # print(len(Edges))
         # for edge in Edges:

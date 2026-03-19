@@ -208,3 +208,10 @@ python train.py device=cuda:0
 - WandB 指标是否完整上报
 - 模型 checkpoint 是否按预期保存
 - 评估脚本是否可复现实验结果
+
+### for runing (zehao)
+```bash
+export PYTHONPATH=/data2/zehao/MapPolicy
+conda activate mappolicy
+cd /data2/zehao/MapPolicy
+```

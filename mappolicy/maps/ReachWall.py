@@ -8,6 +8,7 @@ class Wall_Desk:
     def __init__(self, sizes, positions, rotations):
         semantic1 = 'desk'
         semantic2 = 'wall'
+        self.Object_Prompt = 'wall desk'
 
         Nodes = []
         Edges = []
@@ -53,6 +54,8 @@ class StructureMap_ReachWall(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

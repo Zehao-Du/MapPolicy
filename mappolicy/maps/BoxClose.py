@@ -8,6 +8,7 @@ class Box:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'box bottom'
         semantic2 = 'box body'
+        self.Object_Prompt = 'box'
         
         Nodes = []
         Edges = []
@@ -38,6 +39,7 @@ class Cover:
         semantic2 = "cover handle top"
         semantic3 = "cover handle side left"
         semantic4 = "cover handle side right"
+        self.Object_Prompt = 'box cover'
         
         Nodes = []
         Edges = []
@@ -100,6 +102,8 @@ class StructureMap_BoxClose(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

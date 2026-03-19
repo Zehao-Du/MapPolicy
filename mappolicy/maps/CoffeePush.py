@@ -7,6 +7,7 @@ from base_template import StructureEdge, StructureGraph
 class Cup:
     def __init__ (self, size, position, rotation):
         semantic = 'cup'
+        self.Object_Prompt = 'cup'
         
         Nodes = []
         Edges = []
@@ -21,6 +22,7 @@ class CoffeMachine:
         semantic1 = "coffee machine body"
         semantic2 = "coffee machine body"
         semantic3 = "coffee machine button"
+        self.Object_Prompt = 'coffee machine'
         # semantic4 = "coffee machine spout"
         
         size1 = sizes[:, 0:3]
@@ -80,6 +82,8 @@ class StructureMap_CoffeePush(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

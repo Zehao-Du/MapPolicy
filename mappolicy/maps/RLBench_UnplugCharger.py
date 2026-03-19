@@ -11,6 +11,7 @@ class Peg_Three_Parts_Mechanism:
     """
 
     def __init__(self, sizes, positions, rotations):
+        self.Object_Prompt = "peg assembly"
         # sizes: [B, 7] -> cyl(2: h, r) + yellow(3: height, length, width) + ring_outer(2: L, W)
         # 注：ring 的 front_height = yellow height, inner_L/W = yellow length/width
         # positions: [B, 9],  rotations: [B, 18]
@@ -114,6 +115,8 @@ class StructureMap_UnplugCharger(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(obj.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
 
         super().__init__(Nodes, Edges, clip_model)
 

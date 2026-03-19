@@ -7,6 +7,7 @@ from base_template import StructureEdge, StructureGraph
 class Cuboid_Base:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'cuboid base'
+        self.Object_Prompt = 'cuboid base'
         
         Nodes = []
         Edges = []
@@ -24,6 +25,7 @@ class Laptop:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'laptop base'
         semantic2 = 'laptop lid'
+        self.Object_Prompt = 'laptop'
         
         Nodes = []
         Edges = []
@@ -69,6 +71,8 @@ class StructureMap_LaptopLid(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         

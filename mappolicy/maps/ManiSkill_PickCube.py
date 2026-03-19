@@ -8,6 +8,7 @@ from base_template import StructureGraph
 class Cube:
     def __init__(self, sizes, positions, rotations):
         semantic1 = 'cube'
+        self.Object_Prompt = 'cube'
 
         Nodes = []
         Edges = []
@@ -56,6 +57,8 @@ class StructureMap_PickCube(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
 
         super().__init__(Nodes, Edges, clip_model)
 

@@ -7,6 +7,7 @@ from base_template import StructureEdge, StructureGraph
 class Bucket:
     def __init__ (self, size, position, rotation):
         semantic = 'bucket'
+        self.Object_Prompt = 'bucket'
         
         Nodes = []
         Edges = []
@@ -19,6 +20,7 @@ class Bucket:
 class Rubbish:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = "rubbish"
+        self.Object_Prompt = 'rubbish'
 
         size1 = sizes[:, 0:3]
         position1 = positions[:, 0:3]
@@ -36,6 +38,7 @@ class Fruit:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = "fruit"
         semantic2 = "fruit"
+        self.Object_Prompt = 'fruit'
 
         size1 = sizes[:, 0:3]
         size2 = sizes[:, 3:6]
@@ -81,6 +84,8 @@ class StructureMap_PutRubbishIn(StructureGraph):
                 edge.update_node_idx(num_node)
                 Edges.append(edge)
             num_node += len(object.Nodes)
+
+        self.Subgraph_Prompts = self._build_subgraph_prompts(Objects)
         
         super().__init__(Nodes, Edges, clip_model)
         
