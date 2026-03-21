@@ -102,13 +102,15 @@ def main():
             "--env-id",
             args.task_name,
             "--num-traj",
-            str(args.num_traj),
+            str(args.num_traj + 100),
             "--only-count-success",
             "--save-video",
             "--record-dir",
             str(repo_root / args.record_dir),
             "--traj-name",
             traj_name,
+            "--num-procs",
+            str(10),
         ],
         dry_run=args.dry_run,
     )
@@ -126,6 +128,8 @@ def main():
         "--no-vis",
         "--save-traj",
         "--verbose",
+        "--num-envs",
+        str(10),
     ]
     if not args.allow_failure:
         replay_cmd.append("--no-allow-failure")
@@ -148,6 +152,8 @@ def main():
             str(zarr_out_dir),
             "--camera-name",
             args.camera_name,
+            "--max-episode",
+            str(args.num_traj),
         ],
         dry_run=args.dry_run,
     )

@@ -40,9 +40,9 @@ pip install pyg_lib torch_scatter torch_sparse torch_cluster torch_spline_conv \
 
 FastSAM
 ```bash
-cd third_party/FastSAM
+cd mappolicy/models/fast_sam/FastSAM
 pip install -r requirements.txt
-cd ../..
+cd ../../../..
 ```
 
 ---
