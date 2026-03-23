@@ -1,8 +1,12 @@
 import h5py
 import numpy as np
+import os
 
 # ===================== 替换为你的 .h5 文件路径 =====================
-traj_h5_path = "/data2/zehao/MapPolicy/Data/maniskill/StackCube-v1/motionplanning/StackCube.rgb+depth+segmentation.pd_ee_delta_pose.physx_cpu.h5"
+traj_h5_path = os.path.join(
+    os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root"),
+    "Data/maniskill/StackCube-v1/motionplanning/StackCube.rgb+depth+segmentation.pd_ee_delta_pose.physx_cpu.h5",
+)
 # ==================================================================
 
 # 这些关键字用于在 h5 中定位相机参数

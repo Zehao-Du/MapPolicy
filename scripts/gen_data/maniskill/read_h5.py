@@ -1,8 +1,12 @@
 import h5py
 import numpy as np
+import os
 
 # ===================== 替换为你的.h5文件路径 =====================
-traj_h5_path = "/data2/zehao/MapPolicy/Data/maniskill/StackCube-v1/motionplanning/StackCube.rgb+depth+segmentation.pd_ee_delta_pose.physx_cpu.h5"
+traj_h5_path = os.path.join(
+    os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root"),
+    "Data/maniskill/StackCube-v1/motionplanning/StackCube.rgb+depth+segmentation.pd_ee_delta_pose.physx_cpu.h5",
+)
 # =================================================================
 
 def print_h5_structure(h5obj, indent=0):

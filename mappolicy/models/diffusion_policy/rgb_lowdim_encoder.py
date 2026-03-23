@@ -42,7 +42,8 @@ if __name__ == "__main__":
     
     # 1. Load config and get shape_meta
     from omegaconf import OmegaConf
-    config_path = "/data2/zehao/MapPolicy/mappolicy/models/diffusion_policy/diffusion_unet_hybrid_image.yaml"
+    project_root = os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root")
+    config_path = f"{project_root}/mappolicy/models/diffusion_policy/diffusion_unet_hybrid_image.yaml"
     config = OmegaConf.load(config_path)
     shape_meta = config['shape_meta']
     

@@ -12,7 +12,7 @@ camera_name: corner
 image_size: 224
 
 # Data settings
-project_root: /data2/zehao/3D_Map
+project_root: ${oc.env:MAPPOLICY_ROOT,your_path_to_project_root}
 dataset_dir: ${project_root}/data_new/metaworld/${task_name}_${camera_name}.zarr
 dataloader:
   batch_size: 24

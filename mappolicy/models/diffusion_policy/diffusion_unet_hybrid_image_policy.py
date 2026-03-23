@@ -291,9 +291,10 @@ if __name__ == "__main__":
     from mappolicy.helper.pytorch import dict_apply
 
     device = "cuda:0"
-    config_path = "/data2/zehao/MapPolicy/mappolicy/models/diffusion_policy/diffusion_unet_hybrid_image.yaml"
+    project_root = os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root")
+    config_path = f"{project_root}/mappolicy/models/diffusion_policy/diffusion_unet_hybrid_image.yaml"
     config = OmegaConf.load(config_path)
-    data_dir = "/data2/zehao/MapPolicy/data/maniskill/PickCube-v1_base_camera.zarr"
+    data_dir = f"{project_root}/data/maniskill/PickCube-v1_base_camera.zarr"
 
     # 1. 初始化数据集与 Normalizer
     print("Initializing dataset and normalizer...")

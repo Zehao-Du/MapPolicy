@@ -1,4 +1,5 @@
 import pathlib
+import os
 import sys
 import importlib
 from typing import Optional, Union
@@ -252,10 +253,11 @@ class FastSAM_Loader:
 
 def main():
 	# 固定输入
-	ckpt_path = "/data2/zehao/MapPolicy/mappolicy/models/fast_sam/FastSAM/weights/FastSAM-x.pt"
-	image_path = "/data2/zehao/MapPolicy/mappolicy/models/fast_sam/FastSAM/images/cat.jpg"
+	project_root = pathlib.Path(os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root"))
+	ckpt_path = str(project_root / "mappolicy/models/fast_sam/FastSAM/weights/FastSAM-x.pt")
+	image_path = str(project_root / "mappolicy/models/fast_sam/FastSAM/images/cat.jpg")
 	text_prompt = "cat"
-	output_dir = pathlib.Path("/data2/zehao/MapPolicy/mappolicy/models/fast_sam/test_output")
+	output_dir = project_root / "mappolicy/models/fast_sam/test_output"
 	mask_output_path = output_dir / "cat_mask.png"
 	masked_rgb_output_path = output_dir / "cat_masked_rgb.png"
 

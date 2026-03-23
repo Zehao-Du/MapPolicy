@@ -97,7 +97,7 @@ class RLBenchDataset(torch.utils.data.Dataset):
 
 
 if __name__ == "__main__":
-    data_dir = "/data2/zehao/MapPolicy/data/rlbench/close_box.zarr"
+    data_dir = f"{os.getenv('MAPPOLICY_ROOT', 'your_path_to_project_root')}/data/rlbench/close_box.zarr"
     dataset = RLBenchDataset(data_dir, split="custom", custom_split_size=120)
     dataset.print_info()
     actions = dataset._actions

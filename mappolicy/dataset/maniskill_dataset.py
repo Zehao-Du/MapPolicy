@@ -2,6 +2,7 @@ import torch
 import zarr
 from termcolor import colored
 import numpy as np
+import os
 
 from mappolicy.helper.logger import Logger
 
@@ -258,7 +259,7 @@ def test_dataset(data_dir, mode="dp"):
 
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
-    DATA_PATH = "/data2/zehao/MapPolicy/data/maniskill/StackCube-v1_base_camera.zarr"
+    DATA_PATH = f"{os.getenv('MAPPOLICY_ROOT', 'your_path_to_project_root')}/data/maniskill/StackCube-v1_base_camera.zarr"
     
     test_dataset(DATA_PATH, mode="base")
     # test_dataset(DATA_PATH, mode="dp")

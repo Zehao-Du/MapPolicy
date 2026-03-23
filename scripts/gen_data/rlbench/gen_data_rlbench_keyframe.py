@@ -458,7 +458,11 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rlbench-data-root", type=str, default="/data2/zehao/StructureMap3D/Data/RLBench_224")
+    parser.add_argument(
+        "--rlbench-data-root",
+        type=str,
+        default=str(pathlib.Path(os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root")) / "Data" / "RLBench_224"),
+    )
     parser.add_argument("--task-name", type=str, default="close_box")
     parser.add_argument("--camera-name", type=str, default="front")
     parser.add_argument(

@@ -83,14 +83,21 @@ pip install numpy==1.26.4
 
 ---
 
-## 📊 4. 日志记录 (WandB)
+## 📊 4. Environment Variables
 
-请将以下环境变量添加到你的 `~/.bashrc` 或在终端临时导出：
+wandb
 
 ```bash
 export WANDB_API_KEY="your_wandb_api_key"
 export WANDB_USER_EMAIL="your_wandb_email"
 export WANDB_USERNAME="your_wandb_username"
+```
+
+root
+
+```bash
+export PYTHONPATH="your_path_to_MapPolicy"
+export MAPPOLICY_ROOT="your_path_to_MapPolicy"
 ```
 
 ---
@@ -211,7 +218,69 @@ python train.py device=cuda:0
 
 ### for runing (zehao)
 ```bash
-export PYTHONPATH=/data2/zehao/MapPolicy
+export MAPPOLICY_ROOT=your_path_to_project_root
+export PYTHONPATH=$MAPPOLICY_ROOT
 conda activate mappolicy
-cd /data2/zehao/MapPolicy
+cd $MAPPOLICY_ROOT
 ```
+
+---
+
+## 🔁 Path guide（具体文件）
+
+现在优先使用单一环境变量：`MAPPOLICY_ROOT`。  
+大部分路径会从它自动拼接，不再需要逐个文件手改。
+
+### 1) 必配（推荐）
+
+- 环境变量：`MAPPOLICY_ROOT`
+    - 用法见上方运行命令。
+
+### 2) 会读取 `MAPPOLICY_ROOT` 的配置文件
+
+- [mappolicy/config/train_map.yaml](mappolicy/config/train_map.yaml)
+    - `project_root: ${oc.env:MAPPOLICY_ROOT,...}`
+- [mappolicy/config/train_maniskill.yaml](mappolicy/config/train_maniskill.yaml)
+    - `project_root: ${oc.env:MAPPOLICY_ROOT,...}`
+- [mappolicy/config/traindp_maniskill.yaml](mappolicy/config/traindp_maniskill.yaml)
+    - `project_root: ${oc.env:MAPPOLICY_ROOT,...}`
+- [mappolicy/config/train_metaworld.yaml](mappolicy/config/train_metaworld.yaml)
+    - `project_root: ${oc.env:MAPPOLICY_ROOT,...}`
+- [mappolicy/config/train_rlbench.yaml](mappolicy/config/train_rlbench.yaml)
+    - `project_root: ${oc.env:MAPPOLICY_ROOT,...}`
+
+### 3) 会读取 `MAPPOLICY_ROOT` 的脚本/测试入口
+
+- [mappolicy/models/mappolicy/map_constructor.py](mappolicy/models/mappolicy/map_constructor.py)
+    - `--config_path` 默认值、FastSAM ckpt、test_output
+- [mappolicy/models/fast_sam/fastsam_loader.py](mappolicy/models/fast_sam/fastsam_loader.py)
+    - demo `main()` 的 ckpt/image/output
+- [mappolicy/dataset/maniskill_dataset.py](mappolicy/dataset/maniskill_dataset.py)
+    - `__main__` 测试数据路径
+- [mappolicy/dataset/rlbench_dataset.py](mappolicy/dataset/rlbench_dataset.py)
+    - `__main__` 测试数据路径
+- [mappolicy/models/diffusion_policy/rgb_lowdim_encoder.py](mappolicy/models/diffusion_policy/rgb_lowdim_encoder.py)
+    - `__main__` 配置路径
+- [mappolicy/models/diffusion_policy/diffusion_unet_hybrid_image_policy.py](mappolicy/models/diffusion_policy/diffusion_unet_hybrid_image_policy.py)
+    - `__main__` 配置/数据路径
+- [mappolicy/envs/metaworld_env.py](mappolicy/envs/metaworld_env.py)
+    - debug `.ply` 输出路径
+- [scripts/gen_data/maniskill/make_maniskill_zarr.py](scripts/gen_data/maniskill/make_maniskill_zarr.py)
+    - `--zarr-save-dir` 默认值
+- [scripts/gen_data/maniskill/read_h5.py](scripts/gen_data/maniskill/read_h5.py)
+    - 默认 `.h5` 路径
+- [scripts/gen_data/maniskill/read_camera_params.py](scripts/gen_data/maniskill/read_camera_params.py)
+    - 默认 `.h5` 路径
+- [scripts/gen_data/rlbench/gen_data_rlbench.py](scripts/gen_data/rlbench/gen_data_rlbench.py)
+    - `--rlbench-data-root` 默认值
+- [scripts/gen_data/rlbench/gen_data_rlbench_keyframe.py](scripts/gen_data/rlbench/gen_data_rlbench_keyframe.py)
+    - `--rlbench-data-root` 默认值
+
+### 4) 仍可手动覆盖
+
+如果你的数据不在 `$MAPPOLICY_ROOT` 下，可直接传命令行参数覆盖，例如：
+
+- `dataset_dir=...`
+- `--rlbench-data-root ...`
+- `--zarr-save-dir ...`
+- `--config_path ...`

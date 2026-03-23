@@ -9,7 +9,7 @@ task_name: StackCube-v1
 camera_name: base_camera
 image_size: 128
 
-project_root: /data2/zehao/MapPolicy
+project_root: ${oc.env:MAPPOLICY_ROOT,your_path_to_project_root}
 dataset_dir: ${project_root}/data/maniskill/${task_name}_${camera_name}.zarr
 
 dataloader:

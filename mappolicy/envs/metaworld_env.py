@@ -508,8 +508,9 @@ if __name__ == "__main__":
         print(f"Saved via Open3D: {filename} (Max RGB: {rgb.max():.2f})")
 
     # 保存对比
-    save_pc_with_open3d(pc_with_robot, "/data2/zehao/3D_Map/tmp/debug_pc_WITH_robot.ply")
-    save_pc_with_open3d(pc_no_robot, "/data2/zehao/3D_Map/tmp/debug_pc_NO_robot.ply")
+    project_root = os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root")
+    save_pc_with_open3d(pc_with_robot, os.path.join(project_root, "tmp", "debug_pc_WITH_robot.ply"))
+    save_pc_with_open3d(pc_no_robot, os.path.join(project_root, "tmp", "debug_pc_NO_robot.ply"))
 
     print("\n" + "="*80)
     print("Point Cloud Verification Complete.")

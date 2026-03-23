@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import os
 import pathlib
 import shlex
 import subprocess
@@ -67,7 +68,7 @@ def main():
     )
     parser.add_argument(
         "--zarr-save-dir",
-        default="/data2/lirui/StructureMap3D/data_new/maniskill_zarr",
+        default=os.path.join(os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root"), "data", "maniskill"),
         help="zarr 保存根目录",
     )
     parser.add_argument(

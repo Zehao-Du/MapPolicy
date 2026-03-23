@@ -420,11 +420,11 @@ def test_parameter_estimator_singleframe_segmentation(
         device = cfg.get("device", "cuda:0" if torch.cuda.is_available() else "cpu")
 
     if fastsam_ckpt_path is None:
-        project_root = cfg.get("project_root", "/data2/zehao/MapPolicy")
+        project_root = cfg.get("project_root", os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root"))
         fastsam_ckpt_path = f"{project_root}/mappolicy/models/fast_sam/FastSAM/weights/FastSAM-x.pt"
 
     if output_dir is None:
-        project_root = cfg.get("project_root", "/data2/zehao/MapPolicy")
+        project_root = cfg.get("project_root", os.getenv("MAPPOLICY_ROOT", "your_path_to_project_root"))
         output_dir = f"{project_root}/test_output"
 
     dataset = instantiate(
@@ -537,6 +537,7 @@ def test_parameter_estimator_singleframe_segmentation(
 
 if __name__ == "__main__":
     import argparse
+    import os
 
     parser = argparse.ArgumentParser(
         description="Test ParameterEstimator_SingleFrame_Segmentation with dataset from config"
@@ -544,7 +545,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--config_path",
         type=str,
-        default="/data2/zehao/MapPolicy/mappolicy/config/train_map.yaml",
+        default=f"{os.getenv('MAPPOLICY_ROOT', 'your_path_to_project_root')}/mappolicy/config/train_map.yaml",
     )
     parser.add_argument("--split", type=str, default="train")
     parser.add_argument("--fastsam_ckpt_path", type=str, default=None)
