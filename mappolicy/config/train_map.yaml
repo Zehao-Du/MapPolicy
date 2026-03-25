@@ -8,14 +8,14 @@ device: cuda:0
 
 task_name: StackCube-v1
 camera_name: base_camera
-image_size: 224
+image_size: 1024
 
 project_root: ${oc.env:MAPPOLICY_ROOT,your_path_to_project_root}
 dataset_dir: ${project_root}/data/maniskill/${task_name}_${camera_name}.zarr
 
 dataloader:
   batch_size: 256
-  num_workers: 0
+  num_workers: 4
   shuffle: True
   drop_last: True
   pin_memory: True

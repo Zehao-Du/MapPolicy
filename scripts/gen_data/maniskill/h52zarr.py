@@ -91,7 +91,6 @@ class FPSTaskManager:
                     self.results[tid] = np.zeros((K, 6), dtype=np.float32)
                 continue
 
-            # 直接在 GPU 上初始化张量，消除 CPU 拷贝
             padded_t = torch.zeros((B, N_max, 6), dtype=torch.float32, device=self.device)
             for i, pc in enumerate(pcs):
                 n = pc.shape[0]
@@ -184,7 +183,8 @@ def extract_traj_data(
     traj_group, profiler: Profiler, device: torch.device, camera_name: str = "base_camera",
     ground_seg_ids: set[int] | None = None, robot_seg_ids: set[int] | None = None, non_foreground_seg_ids: set[int] | None = None,
     pc_foreground_quota: int = 128, pc_no_robot_foreground_quota: int = 256,
-    auto_remove_topk: int = 2, num_points: int = 1024, image_size: int = 128,
+    auto_remove_topk: int = 2, num_points: int = 1024, 
+    image_size: int = 128, save_image_size: int = 128 # ✨ 新增 save_image_size 参数
 ):
     with profiler.profile("1. 磁盘读取 H5 (I/O)"):
         obs_group = traj_group["obs"]
@@ -201,13 +201,31 @@ def extract_traj_data(
         seg = seg[:T].squeeze(-1)
         intrinsic = intrinsic[:T]
 
+    # ✨ 修改点：分离处理用于点云的图片大小和最终保存的图片大小
     with profiler.profile("2. 图像 Resize (GPU)"):
         orig_H, orig_W = rgb.shape[1], rgb.shape[2]
+        
+        # --- A. 处理最终要保存的图像 (save_image_size) ---
+        if orig_H != save_image_size or orig_W != save_image_size:
+            final_rgb = resize_images(rgb, save_image_size, device, is_seg=False)
+            final_depth = resize_images(depth, save_image_size, device, is_seg=False)
+        else:
+            final_rgb = rgb
+            final_depth = depth
+
+        # --- B. 处理用于生成点云的图像和参数 (image_size) ---
         if orig_H != image_size or orig_W != image_size:
             scale_y = image_size / orig_H
             scale_x = image_size / orig_W
-            rgb = resize_images(rgb, image_size, device, is_seg=False)
-            depth = resize_images(depth, image_size, device, is_seg=False)
+            
+            # 优化：如果生成点云的大小和保存的大小一致，直接复用以节约计算
+            if image_size == save_image_size:
+                pc_rgb = final_rgb
+                pc_depth = final_depth
+            else:
+                pc_rgb = resize_images(rgb, image_size, device, is_seg=False)
+                pc_depth = resize_images(depth, image_size, device, is_seg=False)
+                
             seg = resize_images(seg, image_size, device, is_seg=True)
             
             intrinsic_resized = intrinsic.copy()
@@ -216,6 +234,9 @@ def extract_traj_data(
             intrinsic_resized[:, 1, 1] *= scale_y
             intrinsic_resized[:, 1, 2] *= scale_y
             intrinsic = intrinsic_resized
+        else:
+            pc_rgb = rgb
+            pc_depth = depth
 
     if ground_seg_ids is None:
         seg_probe = seg[: min(10, T)]
@@ -232,7 +253,8 @@ def extract_traj_data(
 
     for i in range(T):
         with profiler.profile("3. 深度反投影点云"):
-            pc_full, valid_mask = depth_to_pcd(depth[i], rgb[i], intrinsic[i], grid_y, grid_x, return_valid_mask=True)
+            # ✨ 注意这里使用的是 pc_depth 和 pc_rgb
+            pc_full, valid_mask = depth_to_pcd(pc_depth[i], pc_rgb[i], intrinsic[i], grid_y, grid_x, return_valid_mask=True)
             seg_valid = seg[i].reshape(-1)[valid_mask]
 
         with profiler.profile("4. 语义 Mask 过滤"):
@@ -294,9 +316,10 @@ def extract_traj_data(
     gripper_width = qpos[..., -1:] + qpos[..., -2:-1]
     robot_state = np.concatenate([tcp_pose, gripper_width], axis=-1)
 
+    # ✨ 修改点：返回的是 final_rgb 和 final_depth（受 save_image_size 控制）
     return {
-        "images": rgb,
-        "depths": depth,
+        "images": final_rgb,
+        "depths": final_depth,
         "point_clouds": np.stack(pcs),
         "point_clouds_no_robot": np.stack(pcs_nr),
         "robot_states": robot_state,
@@ -310,7 +333,6 @@ def extract_traj_data(
 def worker_process(args):
     h5_path, zarr_save_path, traj_keys, worker_id, kwargs = args
     
-    # 每个进程内部初始化设备，避免 PyTorch CUDA 死锁
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     profiler = Profiler(enabled=kwargs.get("enable_profile", False))
     
@@ -331,7 +353,8 @@ def worker_process(args):
                 f[traj_key], profiler=profiler, device=device, camera_name=kwargs["camera_name"],
                 ground_seg_ids=kwargs["ground_seg_ids"], robot_seg_ids=kwargs["robot_seg_ids"], non_foreground_seg_ids=kwargs["non_foreground_seg_ids"],
                 pc_foreground_quota=kwargs["pc_foreground_quota"], pc_no_robot_foreground_quota=kwargs["pc_no_robot_foreground_quota"],
-                auto_remove_topk=kwargs["auto_remove_topk"], num_points=kwargs["num_points"], image_size=kwargs["image_size"],      
+                auto_remove_topk=kwargs["auto_remove_topk"], num_points=kwargs["num_points"], 
+                image_size=kwargs["image_size"], save_image_size=kwargs["save_image_size"]  # ✨ 传递 save_image_size
             )
             
             with profiler.profile("7. Zarr 落盘写入 (I/O)"):
@@ -377,12 +400,10 @@ def merge_temp_zarrs(temp_paths: list[str], final_path: str):
                     compressor=DEFAULT_COMPRESSOR, dtype=arr.dtype
                 )
             
-            # 流式安全 Append，防止合并时内存爆炸
             chunk_size = 1000
             for i in range(0, arr.shape[0], chunk_size):
                 datasets[k].append(arr[i:i+chunk_size])
         
-        # 调整 episode_ends 的累加偏移量
         if len(part_ends) > 0:
             adjusted_ends = part_ends + current_step
             episode_ends.extend(adjusted_ends.tolist())
@@ -391,25 +412,24 @@ def merge_temp_zarrs(temp_paths: list[str], final_path: str):
     final_root.create_group("meta").create_dataset("episode_ends", data=np.array(episode_ends))
     cprint(f"✅ 合并完成！最终文件：{final_path}", "green")
     
-    # 清理临时文件
     for p in temp_paths:
         shutil.rmtree(p)
 
 
 def main(args):
-    # 必须设置 spawn 模式以确保多进程安全调用 CUDA
     mp.set_start_method('spawn', force=True)
     
+    # ✨ 如果没有指定 save_image_size，则默认等于 image_size
+    save_image_size = args.save_image_size if args.save_image_size is not None else args.image_size
+
     pathlib.Path(args.zarr_save_dir).mkdir(parents=True, exist_ok=True)
     cprint(f"📌 目标Zarr保存目录：{args.zarr_save_dir}", "green")
-    cprint(f"⚙️  配置: 并行进程 {args.num_workers} | 采样点 {args.num_points} | 图像 {args.image_size}x{args.image_size}", "cyan")
+    cprint(f"⚙️  配置: 进程 {args.num_workers} | 采样点 {args.num_points} | 提取点云图像 {args.image_size}x{args.image_size} | 保存图像 {save_image_size}x{save_image_size}", "cyan")
 
-    # 预解析参数
     ground_seg_ids = parse_seg_id_list_with_auto(args.ground_seg_ids)
     robot_seg_ids = parse_seg_id_list_with_auto(args.robot_seg_ids)
     non_foreground_seg_ids = parse_seg_id_list_with_auto(args.non_foreground_seg_ids)
 
-    # 提取轨迹总数
     with h5py.File(args.input_path, "r", libver='latest', swmr=True) as f:
         traj_keys = natsorted([k for k in f.keys() if k.startswith("traj_")])
         if args.max_episode is not None:
@@ -419,7 +439,6 @@ def main(args):
         cprint("❌ 找不到任何轨迹！", "red")
         return
 
-    # 分割任务块
     num_workers = min(args.num_workers, len(traj_keys))
     chunk_size = int(np.ceil(len(traj_keys) / num_workers))
     
@@ -436,6 +455,7 @@ def main(args):
         "auto_remove_topk": args.auto_remove_topk,
         "num_points": args.num_points,
         "image_size": args.image_size,
+        "save_image_size": save_image_size,  # ✨ 新增传参
         "enable_profile": args.profile,
         "quiet": args.quiet
     }
@@ -449,12 +469,10 @@ def main(args):
         temp_paths.append(str(temp_dir))
         worker_args.append((args.input_path, str(temp_dir), sub_keys, i, kwargs))
 
-    # 并行执行
     cprint(f"🚀 开始分配任务至 {num_workers} 个进程...", "magenta")
     with mp.Pool(processes=num_workers) as pool:
         pool.map(worker_process, worker_args)
     
-    # 自动合并所有临时 Zarr 文件
     merge_temp_zarrs(temp_paths, final_zarr_path)
 
 
@@ -472,10 +490,9 @@ if __name__ == "__main__":
     parser.add_argument("--pc-foreground-quota", type=int, default=128)
     parser.add_argument("--pc-no-robot-foreground-quota", type=int, default=256)
     parser.add_argument("--num-points", type=int, default=1024)
-    parser.add_argument("--image-size", type=int, default=128)
+    parser.add_argument("--image-size", type=int, default=128, help="用于提取点云的深度图和RGB图的分辨率大小")
+    parser.add_argument("--save-image-size", type=int, default=None, help="✨ 最终保存到Zarr数据集中的图像大小(如果不填则默认等于--image-size)")
     parser.add_argument("--profile", action="store_true")
-    
-    # 🚀 新增并行控制参数
     parser.add_argument("--num-workers", type=int, default=4, help="启动多少个进程同时转换 (推荐设置为云服务器 CPU 核心数一半)")
     
     args = parser.parse_args()

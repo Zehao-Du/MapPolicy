@@ -15,10 +15,14 @@ CUDA_VISIBLE_DEVICES=0 python -m mani_skill.trajectory.replay_trajectory \
 --num-envs 10
 
 转化为zarr格式 
-python scripts/gen_data/maniskill/h52zarr.py \
+CUDA_VISIBLE_DEVICES=0 python scripts/gen_data/maniskill/h52zarr.py \
 --input-path /inspire/hdd/project/robot-dna/baojiachun-CZXS25130063/zehao/MapPolicy/Data/maniskill_1024/StackCube-v1/motionplanning/StackCube.rgb+depth+segmentation.pd_ee_delta_pose.physx_cpu.h5 \
 --zarr-save-dir /inspire/hdd/project/robot-dna/baojiachun-CZXS25130063/zehao/MapPolicy/data/maniskill/StackCube-v1 \
---max-episode 1000
+--max-episode 1000 \
+--save-image-size 1024 \
+--image-size 256 \
+--num-points 4096 \
+--num-workers 10
 
 
 一键生成

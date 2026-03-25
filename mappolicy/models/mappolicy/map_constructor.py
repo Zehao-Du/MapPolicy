@@ -551,7 +551,7 @@ if __name__ == "__main__":
     parser.add_argument("--fastsam_ckpt_path", type=str, default=None)
     parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--run_forward", type=lambda x: str(x).lower() == "true", default=True)
-    parser.add_argument("--output_dir", type=str, default=None)
+    parser.add_argument("--output_dir", type=str, default=f"{os.getenv('MAPPOLICY_ROOT', 'your_path_to_project_root')}/mappolicy/models/mappolicy/test_output")
     parser.add_argument("--num_cases", type=int, default=5)
     args = parser.parse_args()
 

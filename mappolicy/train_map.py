@@ -1,6 +1,7 @@
 import functools
 import os
 import pathlib
+import time  # <--- 新增
 from datetime import datetime
 from typing import Dict
 
@@ -70,12 +71,20 @@ def _save_point_cloud_pairs(
         np.save(batch_dir / f"sample_{i:02d}_pred.npy", pred_np[i])
         np.save(batch_dir / f"sample_{i:02d}_gt.npy", gt_np[i])
 
-    # Save one bundled file for convenience
     np.savez_compressed(
         batch_dir / "comparison.npz",
         pred=pred_np[:num_items],
         gt=gt_np[:num_items],
     )
+
+# ================= 新增：精准同步计时器 =================
+def _get_sync_time(device):
+    """获取同步后的时间，确保 GPU 计算真正完成，避免时间错位"""
+    if 'cuda' in str(device):
+        torch.cuda.synchronize(device)
+    return time.perf_counter()
+# =======================================================
+
 
 @hydra.main(version_base=None, config_path="config", config_name="train_map")
 def main(config):
@@ -85,6 +94,11 @@ def main(config):
     Logger.log_info(f'Model: {colored(config.agent.name, "green")}')
     Logger.log_info(f'benchmark: {colored(config.benchmark.name, "green")}')
     Logger.log_info(f'Image size: {colored(config.image_size, "green")}')
+
+    # ===== 获取 Debug 标志 (可以通过命令行传入 +debug_timing=True) =====
+    DEBUG_TIMING = config.get("debug_timing", True) # 默认开启，排查完后可改为 False
+    if DEBUG_TIMING:
+        Logger.log_info(colored("!!! DEBUG TIMING MODE ENABLED !!! Will print time breakdown per step.", "yellow"))
 
     ############
     # set seed #
@@ -101,7 +115,6 @@ def main(config):
         data_dir=config.dataset_dir,
         split="validation",
     )
-
 
     DataLoaderConstuctor = functools.partial(
         torch.utils.data.DataLoader,
@@ -165,67 +178,102 @@ def main(config):
 
         train_losses = []
         model.train()
+        
         with tqdm.tqdm(
-            train_loader,
+            total=len(train_loader),
             desc=f"Training epoch {cur_epoch}",
             leave=False,
             mininterval=tqdm_interval,
         ) as tepoch:
-            for cur_iter, (
-                images,
-                depths,
-                point_clouds,
-                point_cloud_no_robot,
-                robot_states,
-                actions,
-            ) in enumerate(tepoch):
-                # training iteration
+            
+            # 使用显式迭代器来精确测量数据加载时间
+            data_iter = iter(train_loader)
+            t_start = _get_sync_time(config.device)
+
+            for cur_iter in range(len(train_loader)):
+                # 1. ===== 测试数据加载耗时 =====
+                try:
+                    batch = next(data_iter)
+                except StopIteration:
+                    break
+                t_data = _get_sync_time(config.device)
+                
+                # 拆包
+                images, depths, point_clouds, point_cloud_no_robot, robot_states, actions = batch
+
+                # 2. ===== 测试数据转移到 GPU 的耗时 =====
                 images = images.to(config.device, non_blocking=True)
                 depths = depths.to(config.device, non_blocking=True)
                 point_clouds = point_clouds.to(config.device, non_blocking=True)
                 point_cloud_no_robot = point_cloud_no_robot.to(config.device, non_blocking=True)
+                t_to_gpu = _get_sync_time(config.device)
 
+                # 3. ===== 测试前向传播耗时 =====
                 sence_map = model(point_cloud_no_robot)
                 preds = sence_map.complete_point_cloud()
                 pred_pc = _to_xyz(preds)
                 gt_pc = _to_xyz(point_cloud_no_robot)
+                t_forward = _get_sync_time(config.device)
 
+                # 4. ===== 测试 Loss 计算耗时 =====
                 loss_result = call(config.benchmark.loss_func, pred_pc, gt_pc)
-
                 loss = loss_result / grad_accum_steps
+                t_loss = _get_sync_time(config.device)
+
+                # 5. ===== 测试反向传播及优化器更新耗时 =====
                 loss.backward()
 
                 is_last_batch = (cur_iter == (len(train_loader) - 1))
                 should_step = ((cur_iter + 1) % grad_accum_steps == 0) or is_last_batch
 
                 if should_step:
-                    # clip gradient
                     if config.train.clip_grad_value > 0.0:
                         torch.nn.utils.clip_grad_norm_(
                             model.parameters(), max_norm=config.train.clip_grad_value
                         )
-
                     optimizer.step()
                     optimizer.zero_grad(set_to_none=True)
+                t_backward = _get_sync_time(config.device)
 
-                raw_loss_cpu = loss_result.item()
+                # 6. ===== 测试 CPU 同步及日志耗时 =====
+                raw_loss_cpu = loss_result.item() # 这里会强制 CPU 停下等待 GPU 结果
                 train_losses.append(raw_loss_cpu)
                 current_lr = scheduler.get_last_lr()[0]
-                tepoch.set_postfix(
-                    _format_postfix(cur_epoch, global_step, raw_loss_cpu, current_lr),
-                    refresh=False,
-                )
+                
+                # 不要每个 step 都强制更新 postfix（这也会拖慢速度）
+                if cur_iter % 10 == 0 or is_last_batch:
+                    tepoch.set_postfix(
+                        _format_postfix(cur_epoch, global_step, raw_loss_cpu, current_lr),
+                        refresh=False,
+                    )
 
-                iteration_info = {
-                    "iteration_step": global_step,
-                    "train_interation/epoch": cur_epoch,
-                    "train_interation/loss": raw_loss_cpu,
-                    "train_interation/learning_rate": current_lr,
-                }
-
-                # keep last step for end-of-epoch merged logging
                 if not is_last_batch:
                     global_step += 1
+                
+                t_end = _get_sync_time(config.device)
+
+                # ===== 打印耗时统计分析 =====
+                if DEBUG_TIMING and (cur_iter % 5 == 0): # 每 5 个 step 打印一次分析
+                    time_data = t_data - t_start
+                    time_gpu_transfer = t_to_gpu - t_data
+                    time_fwd = t_forward - t_to_gpu
+                    time_loss_calc = t_loss - t_forward
+                    time_bwd_step = t_backward - t_loss
+                    time_log_sync = t_end - t_backward
+                    total_time = t_end - t_start
+
+                    print(f"\n--- Step {cur_iter} Timing Breakdown (Total: {total_time:.3f}s) ---")
+                    print(f"1. Data Load     : {time_data:.3f}s ({time_data/total_time*100:.1f}%)")
+                    print(f"2. To GPU        : {time_gpu_transfer:.3f}s ({time_gpu_transfer/total_time*100:.1f}%)")
+                    print(f"3. Forward Pass  : {time_fwd:.3f}s ({time_fwd/total_time*100:.1f}%)")
+                    print(f"4. Loss Calc     : {time_loss_calc:.3f}s ({time_loss_calc/total_time*100:.1f}%)")
+                    print(f"5. Backward/Step : {time_bwd_step:.3f}s ({time_bwd_step/total_time*100:.1f}%)")
+                    print(f"6. Log / Sync    : {time_log_sync:.3f}s ({time_log_sync/total_time*100:.1f}%)")
+                    print("-" * 60)
+
+                # 推进 tqdm 并重置下一个循环的计时器
+                tepoch.update(1)
+                t_start = _get_sync_time(config.device)
 
                 if (max_train_steps is not None) and cur_iter >= (max_train_steps - 1):
                     break
@@ -239,15 +287,14 @@ def main(config):
             "global_step": global_step,
         })
 
-        # Validation
+        # Validation (省略内部逻辑，保持不变)
         periodic_validation = (cur_epoch + 1 > num_skip_epochs) and (
             (cur_epoch + 1) % validation_frequency_epochs == 0
         )
         last_epoch = (cur_epoch + 1) == config.train.num_epochs
         if periodic_validation or last_epoch:
+            # ... 此处为你原本的 validation 代码，没有修改 ...
             model.eval()
-
-            # validation loss
             val_loss = 0.0
             with torch.no_grad():
                 val_losses = []
@@ -258,14 +305,8 @@ def main(config):
                     leave=False,
                     mininterval=tqdm_interval,
                 ) as tepoch:
-                    for cur_iter, (
-                        images,
-                        depths,
-                        point_clouds,
-                        point_cloud_no_robot,
-                        robot_states,
-                        actions,
-                    ) in enumerate(tepoch):
+                    for cur_iter, batch in enumerate(tepoch):
+                        images, depths, point_clouds, point_cloud_no_robot, robot_states, actions = batch
                         images = images.to(config.device, non_blocking=True)
                         depths = depths.to(config.device, non_blocking=True)
                         point_clouds = point_clouds.to(config.device, non_blocking=True)
@@ -279,12 +320,13 @@ def main(config):
                         loss_result = call(config.benchmark.loss_func, pred_pc, gt_pc)
 
                         val_losses.append(loss_result.item())
-                        tepoch.set_postfix(
-                            _format_postfix(cur_epoch, global_step, loss_result.item(), scheduler.get_last_lr()[0]),
-                            refresh=False,
-                        )
+                        
+                        if cur_iter % 10 == 0:
+                            tepoch.set_postfix(
+                                _format_postfix(cur_epoch, global_step, loss_result.item(), scheduler.get_last_lr()[0]),
+                                refresh=False,
+                            )
 
-                        # Save predicted and GT point clouds for comparison
                         if save_point_clouds and saved_batches < save_num_batches:
                             _save_point_cloud_pairs(
                                 save_root=sample_save_root,
@@ -315,7 +357,6 @@ def main(config):
                         torch.save(model.state_dict(), best_model_path)
                         Logger.log_ok(f"New best model saved: {best_model_path} (val_loss={best_val_loss:.6f})")
 
-        # log epoch info
         _append_epoch_log(
             epoch_log_file,
             epoch=cur_epoch,
@@ -324,7 +365,6 @@ def main(config):
             val_loss=step_log.get('val_loss', None),
         )
 
-        # epoch-based LR scheduling: step once per epoch
         scheduler.step()
         global_step += 1
 

@@ -41,7 +41,7 @@ class GreenCube:
 class Desk:
     def __init__ (self, sizes, positions, rotations):
         semantic1 = 'desk'
-        self.Object_Prompt = 'table top'
+        self.Object_Prompt = 'wooden desk under tow cubes without cubes'
         
         Nodes = []
         Edges = []
